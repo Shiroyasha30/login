@@ -3,10 +3,10 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const cors = require('cors')
 const knex = require('knex')({
-  client: 'mysql',
+  client: 'pg',
   connection: {
     host : '127.0.0.1',
-    user : 'yash',
+    user : 'postgres',
     password : 'pswd',
     database : 'db'
   }
@@ -18,7 +18,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 app.get('/', (req, res)=>{
-	res.json('--ROOT--');
+	res.send('--ROOT--');
 })
 
 app.post('/signin', (req, res)=>{
@@ -70,36 +70,57 @@ app.post('/register', (req, res)=>{
 
 	var hash = bcrypt.hashSync(pswd);
 
+	/*knex.transaction(trx => {
+		trx.insert({
+			email: email,
+			pswd: hash
+		})
+		.into('login')
+		.returning('email')
+		.then(em => {
+			return trx('users')
+			.returning('*')
+			.insert({
+				email: em[0],
+				name: name
+			})
+			.then(respone => {
+				res.json(response[0]);
+			})
+		})
+		.then(trx.commit)
+		.catch(trx.rollback)
+	})
+	.catch(err => {
+		res.json('error registering user')
+	})*/
+
 
 	knex('login')
+	.returning('email')
 	.insert({
-		email: email,
-		pswd: hash
+		pswd: hash,
+		email: email
 	})
-	.then(serial => {
-		knex('users')
-		// .returning(['id', 'name', 'email', 'cnt'])
+	.then(em => {
+		return knex('users')
+		.returning('*')
 		.insert({
 			name: name,
 			email: email
 		})
-		.then(id => {
-			knex('users')
-			.where({
-				id: id
-			})
-			.select('*')
-			.then(response => {
-				res.json(response[0]);
-			})
-			.catch(err => res.json('Error fetching data'))
+		.then(resp => {
+			res.json(resp[0]);
 		})
-		.catch(err => res.json('Error registering user'))
+		.catch(err => {
+			res.json('errorr');
+		})
 	})
-	.catch(err => res.json('Error registering user'))
-	// .then(response => {
-	// 	res.json(response);
-	// })
+	.catch(err => {
+		res.json('errorr');
+	})
+
+	
 })
 
 // app.get('/profile/:id', (req, res)=>{
